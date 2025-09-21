@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Etiqueta 40×40mm — EAN-13 (centralizado)</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+  <style>
+    :root{
+      --label-w:40mm; --label-h:40mm;
+      --quiet:2mm;
+      --name-h:10mm;
+      --price-h:5mm;
+      --bars-h:16.8mm;
+      --digits-h:3mm;
+      --font-name:3.1mm;
+      --font-price:3.6mm;
+      --font-digits:3.2mm;
+    }
+
+    *{box-sizing:border-box}
+    html,body{margin:0}
+    body{font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#0b132b;color:#e5e7eb}
+
+    .wrap{max-width:860px;margin:24px auto;padding:16px}
+    .card{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px}
+    h1{margin:0 0 8px;font-size:22px;font-weight:800}
+    .lead{color:#9ca3af;margin:0 0 12px}
+    form{display:grid;gap:10px;grid-template-columns:1fr 1fr}
+    label{display:block;font-size:12px;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
+    input,button{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #3b4252;background:#0b1220;color:#eef2f7}
+    button{cursor:pointer;font-weight:600}
+    .primary{background:#22c55e;border:none}
+    .ghost{background:transparent;border:1px solid #3b4252}
+    .actions{display:flex;gap:8px;flex-wrap:wrap}
+    .preview{margin-top:14px}
+
+    /* ===== Etiqueta 40×40 ===== */
+    .label{
+      width:var(--label-w); height:var(--label-h);
+      background:#fff; color:#111; border-radius:6px;
+      display:grid; grid-template-rows:var(--name-h) var(--price-h) var(--bars-h) var(--digits-h);
+      overflow:hidden; break-inside:avoid; page-break-inside:avoid;
+      box-shadow:0 0 0 1px rgba(0,0,0,.06) inset;
+    }
+    .slot{display:flex; align-items:center; width:100%; padding:0 2mm;}
+    .name{
+      font-weight:800; font-size:var(--font-name); line-height:1.2;
+      text-align:left;
+      white-space:normal; word-break:break-word;
+      display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical;
+      overflow:hidden;
+      padding-top:1mm;       /* empurra um pouco pra baixo */
+    }
+    .price{
+      font-weight:800; font-size:var(--font-price); line-height:1;
+      text-align:left; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+    .bars{
+      padding:0 var(--quiet); height:var(--bars-h); overflow:hidden;
+      justify-content:center;       /* centraliza o código de barras */
+    }
+    #barcode{display:block; width:100%; height:100%}
+    .digits {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-weight: 800;
+  font-size: var(--font-digits);
+  letter-spacing: .12em;
+  white-space: nowrap;
+  width: 100%;
+
+  display: flex;                 /* vira flex */
+  justify-content: center;       /* centraliza na horizontal */
+  align-items: center;           /* centraliza na vertical */
+  text-align: center;            /* garante centralização do texto */
+}
+
+    /* ===== PRINT ===== */
+    @media print{
+      @page{ size:40mm 40mm; margin:0 }
+      html, body { width:40mm; height:40mm; margin:0; padding:0; background:#fff; overflow:hidden !important; }
+      h1, .lead, form, .log, .validation, footer { display:none !important; visibility:hidden !important; }
+      .wrap{ margin:0 !important; padding:0 !important }
+      .preview{ margin:0 !important; display:block !important }
+
+      .label{
+        position:fixed; left:50%; top:50%; transform:translate(-50%,-50%);
+        width:39.8mm; height:39.8mm; border-radius:0; box-shadow:none;
+        --name-h:10mm; --price-h:5mm; --bars-h:16.8mm; --digits-h:3mm;
+        --font-name:3.0mm; --font-price:3.4mm; --font-digits:3.0mm;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Gerador de Código de Barras EAN-13</h1>
+      <p class="lead">Nome e preço opcionais. Sem base de 12 dígitos, geramos <b>AAAAMMDD + 4 aleatórios</b>.</p>
+
+      <form id="form">
+        <div class="full">
+          <label for="name">Nome (opcional)</label>
+          <input id="name" placeholder="Ex.: Café Torrado Moído Extra Forte 500g">
+        </div>
+        <div>
+          <label for="price">Preço (R$) (opcional)</label>
+          <input id="price" inputmode="decimal" placeholder="Ex.: 23,00">
+        </div>
+        <div>
+          <label for="eanBase">Base EAN (12 dígitos, opcional)</label>
+          <input id="eanBase" inputmode="numeric" pattern="\d{12}" placeholder="Ex.: 789123456789">
+        </div>
+        <div class="actions full">
+          <button type="submit" class="primary">Gerar</button>
+          <button type="button" class="ghost" id="btnDownload">Baixar PNG</button>
+          <button type="button" class="ghost" id="btnPrint">Imprimir</button>
+        </div>
+      </form>
+
+      <div class="preview">
+        <div class="label" id="label">
+          <div class="slot name"  id="labelName"></div>
+          <div class="slot price" id="labelPrice"></div>
+          <div class="slot bars"><svg id="barcode" preserveAspectRatio="none"></svg></div>
+          <div class="slot digits" id="codeText">0000000000000</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const $ = id => document.getElementById(id);
+
+    function ean13CheckDigit(d12){
+      let sum=0; for(let i=0;i<12;i++) sum+=parseInt(d12[i],10)*(i%2?3:1);
+      return (10-(sum%10))%10;
+    }
+    function generateBase(){
+      const d=new Date();
+      return d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0')+String(Math.floor(Math.random()*10000)).padStart(4,'0');
+    }
+    function makeEan13(base12){ return base12 + ean13CheckDigit(base12); }
+
+    function renderBarcode(code){
+      JsBarcode('#barcode', code, {format:'ean13',displayValue:false,margin:0,width:1.15,height:100});
+      $('barcode').style.width='100%'; $('barcode').style.height='100%';
+      $('barcode').setAttribute('preserveAspectRatio','none');
+      $('codeText').textContent = code;
+    }
+
+    function generateAndRender(){
+      let base=($('eanBase').value||'').replace(/\D/g,'');
+      if(!base) base=generateBase();
+      if(!/^\d{12}$/.test(base)) return;
+      const ean=makeEan13(base);
+      $('labelName').textContent=($('name').value||'').trim();
+      $('labelPrice').textContent=$('price').value?`R$ ${$('price').value}`:'';
+      renderBarcode(ean);
+    }
+
+    document.addEventListener('DOMContentLoaded', generateAndRender);
+    $('form').addEventListener('submit', ev=>{ ev.preventDefault(); generateAndRender(); });
+    $('btnPrint').addEventListener('click', ()=>{ generateAndRender(); setTimeout(()=>window.print(),50); });
+  </script>
+</body>
+</html>
