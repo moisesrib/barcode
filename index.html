@@ -107,7 +107,7 @@
       .preview{ margin:0 !important; display:block !important }
       .label{
         position:fixed; left:50%; top:50%; transform:translate(-50%,-50%);
-        width:39.8mm; height:39.8mm; border-radius:0; box-shadow:none;
+        width:40.8mm; height:39.8mm; border-radius:0; box-shadow:none;
         --name-h:10mm; --price-h:5mm; --bars-h:16.8mm; --digits-h:3mm;
         --font-name:3.0mm; --font-price:3.4mm; --font-digits:4.0mm;
       }
@@ -158,14 +158,14 @@
 
   <script>
     // ===== Parâmetros fáceis =====
-    const BAR_WIDTH_MM  = 0.6;   // espessura da barra (X-dimension)
+   const BAR_WIDTH_MM = 0.468;  // espessura da barra (X-dimension)
     const BAR_HEIGHT_MM = 18.8;  // altura desejada das barras (em mm)
     const LINE_COLOR    = '#000';
 
     const $ = id => document.getElementById(id);
 
     // Conversões simples
-    const MM_PER_IN = 25.4;
+    const MM_PER_IN = 22.4;
     function mmToPx(mm){
       // aproximação usando CSS 96dpi (1in = 96px). Na impressão, use "tamanho real" (100%).
       return (mm / MM_PER_IN) * 96;
@@ -219,7 +219,7 @@
       JsBarcode('#barcode', code, {
         format:'ean13',
         displayValue:false,
-        margin:0,
+        margin:12,
         width: widthPx,
         height: heightPx,
         lineColor: LINE_COLOR
