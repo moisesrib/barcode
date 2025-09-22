@@ -4,15 +4,18 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Etiqueta 40×40mm — EAN-13 (centralizado)</title>
+
+  <!-- Fonte e JsBarcode -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+
   <style>
     :root{
       --label-w:40mm; --label-h:40mm;
-      --quiet:2mm;
+      --quiet:2mm;                 /* quiet zone lateral */
       --name-h:10mm;
       --price-h:5mm;
-      --bars-h:16.8mm;
+      --bars-h:16.8mm;             /* altura do bloco do código na etiqueta */
       --digits-h:3mm;
       --font-name:3.1mm;
       --font-price:3.6mm;
@@ -21,13 +24,17 @@
 
     *{box-sizing:border-box}
     html,body{margin:0}
-    body{font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#0b132b;color:#e5e7eb}
+    body{
+      font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+      background:#0b132b;color:#e5e7eb
+    }
 
     .wrap{max-width:860px;margin:24px auto;padding:16px}
     .card{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px}
     h1{margin:0 0 8px;font-size:22px;font-weight:800}
     .lead{color:#9ca3af;margin:0 0 12px}
     form{display:grid;gap:10px;grid-template-columns:1fr 1fr}
+    .full{grid-column:1/-1}
     label{display:block;font-size:12px;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
     input,button{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #3b4252;background:#0b1220;color:#eef2f7}
     button{cursor:pointer;font-weight:600}
@@ -51,30 +58,45 @@
       white-space:normal; word-break:break-word;
       display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical;
       overflow:hidden;
-      padding-top:1mm;       /* empurra um pouco pra baixo */
+      padding-top:1mm;
     }
     .price{
       font-weight:800; font-size:var(--font-price); line-height:1;
       text-align:left; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
     }
-    .bars{
-      padding:0 var(--quiet); height:var(--bars-h); overflow:hidden;
-      justify-content:center;       /* centraliza o código de barras */
-    }
-    #barcode{display:block; width:100%; height:100%}
-    .digits {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-weight: 800;
-  font-size: var(--font-digits);
-  letter-spacing: .12em;
-  white-space: nowrap;
-  width: 100%;
 
-  display: flex;                 /* vira flex */
-  justify-content: center;       /* centraliza na horizontal */
-  align-items: center;           /* centraliza na vertical */
-  text-align: center;            /* garante centralização do texto */
-}
+    .bars{
+      padding:0 var(--quiet);
+      height:var(--bars-h);
+      overflow:hidden;
+      justify-content:center;       /* centraliza o código de barras */
+      align-items:center;
+    }
+
+    /* IMPORTANTE: não esticar o SVG */
+    #barcode{
+      display:block;
+      /* sem width/height forçados; deixamos o JS definir */
+    }
+
+    /* Renderização nítida das barras nos rasterizadores */
+    .bars svg{
+      shape-rendering:crispEdges;
+      image-rendering:pixelated;
+    }
+
+    .digits{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-weight:800;
+      font-size:var(--font-digits);
+      letter-spacing:.12em;
+      white-space:nowrap;
+      width:100%;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      text-align:center;
+    }
 
     /* ===== PRINT ===== */
     @media print{
@@ -83,14 +105,15 @@
       h1, .lead, form, .log, .validation, footer { display:none !important; visibility:hidden !important; }
       .wrap{ margin:0 !important; padding:0 !important }
       .preview{ margin:0 !important; display:block !important }
-
       .label{
         position:fixed; left:50%; top:50%; transform:translate(-50%,-50%);
         width:39.8mm; height:39.8mm; border-radius:0; box-shadow:none;
         --name-h:10mm; --price-h:5mm; --bars-h:16.8mm; --digits-h:3mm;
-        --font-name:3.0mm; --font-price:3.4mm; --font-digits:3.0mm;
+        --font-name:3.0mm; --font-price:3.4mm; --font-digits:4.0mm;
       }
     }
+
+    .validation{ color:#fca5a5; font-size:12px; margin-top:6px }
   </style>
 </head>
 <body>
@@ -114,16 +137,19 @@
         </div>
         <div class="actions full">
           <button type="submit" class="primary">Gerar</button>
-          <button type="button" class="ghost" id="btnDownload">Baixar PNG</button>
+          <button type="button" class="ghost" id="btnDownload" title="Baixar apenas o código de barras como PNG">Baixar PNG</button>
           <button type="button" class="ghost" id="btnPrint">Imprimir</button>
         </div>
+        <div class="validation" id="validation" role="status" aria-live="polite"></div>
       </form>
 
       <div class="preview">
         <div class="label" id="label">
           <div class="slot name"  id="labelName"></div>
           <div class="slot price" id="labelPrice"></div>
-          <div class="slot bars"><svg id="barcode" preserveAspectRatio="none"></svg></div>
+          <div class="slot bars" id="barsSlot">
+            <svg id="barcode"></svg>
+          </div>
           <div class="slot digits" id="codeText">0000000000000</div>
         </div>
       </div>
@@ -131,38 +157,156 @@
   </div>
 
   <script>
+    // ===== Parâmetros fáceis =====
+    const BAR_WIDTH_MM  = 0.6;   // espessura da barra (X-dimension)
+    const BAR_HEIGHT_MM = 18.8;  // altura desejada das barras (em mm)
+    const LINE_COLOR    = '#000';
+
     const $ = id => document.getElementById(id);
 
+    // Conversões simples
+    const MM_PER_IN = 25.4;
+    function mmToPx(mm){
+      // aproximação usando CSS 96dpi (1in = 96px). Na impressão, use "tamanho real" (100%).
+      return (mm / MM_PER_IN) * 96;
+    }
+
     function ean13CheckDigit(d12){
-      let sum=0; for(let i=0;i<12;i++) sum+=parseInt(d12[i],10)*(i%2?3:1);
-      return (10-(sum%10))%10;
+      let sum=0;
+      for(let i=0;i<12;i++){
+        sum += (i%2 ? 3 : 1) * (d12.charCodeAt(i)-48);
+      }
+      return (10 - (sum % 10)) % 10;
     }
     function generateBase(){
       const d=new Date();
-      return d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0')+String(Math.floor(Math.random()*10000)).padStart(4,'0');
+      return d.getFullYear()
+        + String(d.getMonth()+1).padStart(2,'0')
+        + String(d.getDate()).padStart(2,'0')
+        + String(Math.floor(Math.random()*10000)).padStart(4,'0');
     }
     function makeEan13(base12){ return base12 + ean13CheckDigit(base12); }
 
+    function formatPriceBRL(raw){
+      const s = (raw||'').toString().trim();
+      if(!s) return '';
+      // normaliza vírgula/ponto
+      const normalized = s.replace(/\./g,'').replace(',', '.');
+      const n = Number(normalized);
+      if(!isFinite(n)) return `R$ ${s}`;
+      return new Intl.NumberFormat('pt-BR', {style:'currency', currency:'BRL'}).format(n);
+    }
+
+    function validateBase12(base){
+      if(!/^\d{12}$/.test(base)) return 'A base EAN deve ter exatamente 12 dígitos numéricos.';
+      return '';
+    }
+
     function renderBarcode(code){
-      JsBarcode('#barcode', code, {format:'ean13',displayValue:false,margin:0,width:1.15,height:100});
-      $('barcode').style.width='100%'; $('barcode').style.height='100%';
-      $('barcode').setAttribute('preserveAspectRatio','none');
+      const barsSlot = $('barsSlot');
+
+      // Altura desejada (em px) a partir do parâmetro
+      const desiredHeightPx = Math.max(10, Math.round(mmToPx(BAR_HEIGHT_MM)));
+      // Altura máxima possível pelo slot (sem vazar)
+      const slotMaxPx = Math.max(10, Math.floor(barsSlot.clientHeight || desiredHeightPx));
+      // Usa o menor para não estourar o layout
+      const heightPx = Math.min(desiredHeightPx, slotMaxPx);
+
+      // Largura mínima da barra em px a partir dos mm definidos
+      const widthPx = Math.max(1, Math.round(mmToPx(BAR_WIDTH_MM)));
+
+      // Renderização do SVG pelo JsBarcode (sem margem interna; quiet zone vem do padding do slot)
+      JsBarcode('#barcode', code, {
+        format:'ean13',
+        displayValue:false,
+        margin:0,
+        width: widthPx,
+        height: heightPx,
+        lineColor: LINE_COLOR
+      });
+
+      // NÃO force width/height via CSS; não altere preserveAspectRatio.
       $('codeText').textContent = code;
     }
 
     function generateAndRender(){
-      let base=($('eanBase').value||'').replace(/\D/g,'');
-      if(!base) base=generateBase();
-      if(!/^\d{12}$/.test(base)) return;
-      const ean=makeEan13(base);
-      $('labelName').textContent=($('name').value||'').trim();
-      $('labelPrice').textContent=$('price').value?`R$ ${$('price').value}`:'';
+      const name = $('name').value.trim();
+      const priceStr = $('price').value;
+      let base = ($('eanBase').value||'').replace(/\D/g,'');
+
+      if(!base) base = generateBase();
+
+      const err = validateBase12(base);
+      $('validation').textContent = err;
+      if(err) return;
+
+      const ean = makeEan13(base);
+
+      $('labelName').textContent = name;
+      $('labelPrice').textContent = priceStr ? formatPriceBRL(priceStr) : '';
+
       renderBarcode(ean);
     }
 
-    document.addEventListener('DOMContentLoaded', generateAndRender);
-    $('form').addEventListener('submit', ev=>{ ev.preventDefault(); generateAndRender(); });
-    $('btnPrint').addEventListener('click', ()=>{ generateAndRender(); setTimeout(()=>window.print(),50); });
+    // Baixar apenas o código de barras como PNG (o label completo é para impressão)
+    async function downloadBarcodePNG(){
+      // Serializa o SVG do código
+      const svg = $('barcode');
+      const serializer = new XMLSerializer();
+      const svgStr = serializer.serializeToString(svg);
+
+      // Cria imagem a partir do SVG
+      const svgBlob = new Blob([svgStr], {type:'image/svg+xml;charset=utf-8'});
+      const url = URL.createObjectURL(svgBlob);
+
+      const img = new Image();
+      const load = new Promise(res=> img.onload = res);
+      img.src = url;
+      await load;
+
+      // Desenha em canvas em resolução 2x para nitidez
+      const scale = 2;
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width * scale;
+      canvas.height = img.height * scale;
+      const ctx = canvas.getContext('2d');
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+      URL.revokeObjectURL(url);
+
+      // Baixa
+      const a = document.createElement('a');
+      a.download = 'barcode-ean13.png';
+      a.href = canvas.toDataURL('image/png');
+      a.click();
+    }
+
+    // Eventos
+    document.addEventListener('DOMContentLoaded', ()=>{
+      generateAndRender();
+      // re-render ao redimensionar (altura do slot muda em alguns navegadores)
+      window.addEventListener('resize', ()=>{
+        const codeNow = $('codeText').textContent.replace(/\D/g,'');
+        if(codeNow.length === 13) renderBarcode(codeNow);
+      });
+    });
+
+    $('form').addEventListener('submit', ev=>{
+      ev.preventDefault();
+      generateAndRender();
+    });
+
+    $('btnPrint').addEventListener('click', ()=>{
+      generateAndRender();
+      setTimeout(()=>window.print(), 50);
+    });
+
+    $('btnDownload').addEventListener('click', async ()=>{
+      // garante que o código atual foi renderizado
+      generateAndRender();
+      await downloadBarcodePNG();
+    });
   </script>
 </body>
 </html>
