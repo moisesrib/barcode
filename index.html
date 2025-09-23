@@ -29,14 +29,21 @@
       background:#0b132b;color:#e5e7eb
     }
 
-    .wrap{max-width:860px;margin:24px auto;padding:16px}
+    .wrap{max-width:980px;margin:24px auto;padding:16px}
     .card{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px}
     h1{margin:0 0 8px;font-size:22px;font-weight:800}
     .lead{color:#9ca3af;margin:0 0 12px}
+
+    /* layout principal: formulário + prévia + painel de cópia */
+    .grid{
+      display:grid; gap:14px;
+      grid-template-columns: 1.2fr .9fr; /* prévia | painel */
+    }
     form{display:grid;gap:10px;grid-template-columns:1fr 1fr}
     .full{grid-column:1/-1}
     label{display:block;font-size:12px;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
-    input,button{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #3b4252;background:#0b1220;color:#eef2f7}
+    input,button,textarea{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #3b4252;background:#0b1220;color:#eef2f7}
+    textarea{resize:vertical; min-height:90px}
     button{cursor:pointer;font-weight:600}
     .primary{background:#22c55e;border:none}
     .ghost{background:transparent;border:1px solid #3b4252}
@@ -98,11 +105,21 @@
       text-align:center;
     }
 
+    /* ===== Painel de cópia ===== */
+    .copy-panel{ background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); border-radius:12px; padding:12px; height:fit-content }
+    .copy-row{ display:grid; grid-template-columns: 1fr auto; gap:8px; align-items:center; margin-bottom:10px }
+    .copy-row:last-child{ margin-bottom:0 }
+    .copy-label{ font-size:12px; color:#9ca3af; text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px }
+    .copy-value{ background:#0b1220; border:1px solid #3b4252; border-radius:10px; padding:10px 12px; min-height:40px; display:flex; align-items:center }
+    .copy-actions{ display:flex; gap:8px; flex-wrap:wrap; margin-top:10px }
+    .toast{ position:fixed; right:14px; bottom:14px; background:#22c55e; color:#052e16; padding:10px 12px; border-radius:10px; font-weight:700; box-shadow:0 10px 30px rgba(0,0,0,.25); opacity:0; transform:translateY(8px); transition:.25s }
+    .toast.show{ opacity:1; transform:translateY(0) }
+
     /* ===== PRINT ===== */
     @media print{
       @page{ size:40mm 40mm; margin:0 }
       html, body { width:40mm; height:40mm; margin:0; padding:0; background:#fff; overflow:hidden !important; }
-      h1, .lead, form, .log, .validation, footer { display:none !important; visibility:hidden !important; }
+      h1, .lead, form, .log, .validation, footer, .grid > .copy-panel { display:none !important; visibility:hidden !important; }
       .wrap{ margin:0 !important; padding:0 !important }
       .preview{ margin:0 !important; display:block !important }
       .label{
@@ -143,22 +160,54 @@
         <div class="validation" id="validation" role="status" aria-live="polite"></div>
       </form>
 
-      <div class="preview">
-        <div class="label" id="label">
-          <div class="slot name"  id="labelName"></div>
-          <div class="slot price" id="labelPrice"></div>
-          <div class="slot bars" id="barsSlot">
-            <svg id="barcode"></svg>
+      <div class="grid">
+        <div>
+          <div class="preview">
+            <div class="label" id="label">
+              <div class="slot name"  id="labelName"></div>
+              <div class="slot price" id="labelPrice"></div>
+              <div class="slot bars" id="barsSlot">
+                <svg id="barcode"></svg>
+              </div>
+              <div class="slot digits" id="codeText">0000000000000</div>
+            </div>
           </div>
-          <div class="slot digits" id="codeText">0000000000000</div>
         </div>
+
+        <!-- Painel de cópia -->
+        <aside class="copy-panel" aria-label="Conteúdo para copiar">
+          <div class="copy-row">
+            <div style="grid-column:1/-1" class="copy-label">Nome</div>
+            <div class="copy-value" id="copyName" title="Nome"></div>
+            <button class="ghost" id="btnCopyName" aria-label="Copiar nome">Copiar</button>
+          </div>
+
+          <div class="copy-row">
+            <div style="grid-column:1/-1" class="copy-label">Preço</div>
+            <div class="copy-value" id="copyPrice" title="Preço"></div>
+            <button class="ghost" id="btnCopyPrice" aria-label="Copiar preço">Copiar</button>
+          </div>
+
+          <div class="copy-row">
+            <div style="grid-column:1/-1" class="copy-label">EAN-13</div>
+            <div class="copy-value" id="copyEan" title="Código EAN-13"></div>
+            <button class="ghost" id="btnCopyEan" aria-label="Copiar EAN-13">Copiar</button>
+          </div>
+
+          <div class="copy-actions">
+            <button class="primary" id="btnCopyAll">Copiar tudo</button>
+            <button class="ghost" id="btnCopyCSV" title="Copia como CSV: nome;preço;ean">Copiar em CSV</button>
+          </div>
+        </aside>
       </div>
     </div>
   </div>
 
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
   <script>
     // ===== Parâmetros fáceis =====
-   const BAR_WIDTH_MM = 0.468;  // espessura da barra (X-dimension)
+    const BAR_WIDTH_MM = 0.468;  // espessura da barra (X-dimension)
     const BAR_HEIGHT_MM = 18.8;  // altura desejada das barras (em mm)
     const LINE_COLOR    = '#000';
 
@@ -229,6 +278,58 @@
       $('codeText').textContent = code;
     }
 
+    // === utilitarios de cópia ===
+    async function copyToClipboard(text){
+      try{
+        await navigator.clipboard.writeText(text);
+        showToast('Copiado!');
+      }catch(err){
+        // fallback: usa um textarea temporário
+        const ta = document.createElement('textarea');
+        ta.value = text; document.body.appendChild(ta); ta.select();
+        try{ document.execCommand('copy'); showToast('Copiado!'); }
+        catch(e){ showToast('Não foi possível copiar'); }
+        finally{ ta.remove(); }
+      }
+    }
+    let toastTimer;
+    function showToast(msg){
+      const t=$('toast');
+      t.textContent=msg; t.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer=setTimeout(()=>t.classList.remove('show'),1600);
+    }
+
+    // Atualiza painel de cópia
+    function updateCopyPanel({name, priceFmt, ean}){
+      $('copyName').textContent = name || '';
+      $('copyPrice').textContent = priceFmt || '';
+      $('copyEan').textContent = ean || '';
+
+      // Botões individuais
+      $('btnCopyName').onclick = ()=> copyToClipboard(name || '');
+      $('btnCopyPrice').onclick = ()=> copyToClipboard(priceFmt || '');
+      $('btnCopyEan').onclick = ()=> copyToClipboard(ean || '');
+
+      // Tudo junto (linhas)
+      $('btnCopyAll').onclick = ()=> {
+        const lines = [
+          name || '',
+          priceFmt || '',
+          ean || ''
+        ].join('\n');
+        copyToClipboard(lines);
+      };
+
+      // CSV: nome;preco;ean (ponto e vírgula)
+      $('btnCopyCSV').onclick = ()=>{
+        // remove R$ e espaços do preço para CSV numérico simples, mas mantém vírgula decimal
+        const precoCSV = (priceFmt||'').replace(/\s|R\$\s?/g,'');
+        const csv = `${(name||'').replaceAll(';',',')};${precoCSV};${ean||''}`;
+        copyToClipboard(csv);
+      };
+    }
+
     function generateAndRender(){
       const name = $('name').value.trim();
       const priceStr = $('price').value;
@@ -242,10 +343,12 @@
 
       const ean = makeEan13(base);
 
+      const priceFmt = priceStr ? formatPriceBRL(priceStr) : '';
       $('labelName').textContent = name;
-      $('labelPrice').textContent = priceStr ? formatPriceBRL(priceStr) : '';
+      $('labelPrice').textContent = priceFmt;
 
       renderBarcode(ean);
+      updateCopyPanel({name, priceFmt, ean});
     }
 
     // Baixar apenas o código de barras como PNG (o label completo é para impressão)
